@@ -23,8 +23,29 @@ python f1_analysis.py
 ```
 All plots are saved to the `plots/` folder automatically.
 
-## Sample Output
+## Sample Outputs
+
+### Lap Time Distribution
 ![Lap Distribution](plots/lap_distribution.png)
+
+### Tyre Compound Comparison
+![Compound Boxplot](plots/compound_boxplot.png)
+
+### Sector Times by Driver
+![Sector Comparison](plots/sector_comparison.png)
+
+### Speed vs Lap Time
+![Speed Correlation](plots/speed_correlation.png)
+
+### Predicted vs Actual
+![Predicted vs Actual](plots/predicted_vs_actual.png)
+
+### Feature Importance
+![Feature Importance](plots/feature_importance.png)
+
+### Anomaly Detection
+![Anomaly Detection](plots/anomaly_detection.png)
+
 
 ## Project Structure
 ```
