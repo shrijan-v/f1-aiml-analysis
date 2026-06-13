@@ -116,8 +116,8 @@ body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',Co
   <div class="sep"></div>
   <div class="ctrl-grp">
     <span class="lbl">Speed</span>
-    <input type="range" class="spd-slider" id="speedSlider" min="1" max="10" value="4" step="1">
-    <span class="spd-val" id="speedVal">4x</span>
+    <input type="range" class="spd-slider" id="speedSlider" min="1" max="10" value="1" step="1">
+    <span class="spd-val" id="speedVal">1x</span>
   </div>
   <button class="btn btn-red" id="btnPlay" onclick="togglePlay()">&#9654;&nbsp; Start</button>
   <button class="btn" onclick="resetSim()">&#8635;&nbsp; Reset</button>
@@ -690,7 +690,8 @@ function simulate(){
   const ctx=tc.getContext('2d');
   ctx.clearRect(0,0,tc.width,tc.height);
   drawTrack(ctx,tc.width,tc.height);
-  const lapLen=120/speed;
+  // Base frames per lap: 900 at 1x → smooth & watchable. Slider 1–10 scales up.
+  const lapLen=900/speed;
 
   state.cars.forEach((car,i)=>{
     if(car.lap>=TOTAL_LAPS)return;
@@ -705,7 +706,7 @@ function simulate(){
         else{state.lapTimes[i].push(null);}
       }
       if(car.pitLaps.includes(car.lap)&&car.pitIdx<car.pitLaps.length){
-        car.inPit=true;car.pitTimer=Math.round(8*120/speed);
+        car.inPit=true;car.pitTimer=Math.round(8*900/speed);
         const cmpIdx=Math.min(car.pitIdx+1,car.compounds.length-1);
         car.compound=car.compounds[cmpIdx]||car.compound;
         car.tyre=0;car.pitIdx++;
@@ -789,7 +790,10 @@ window.addEventListener('load',()=>{
   drawTrack(ctx,document.getElementById('track').width,document.getElementById('track').height);
   drawCars(ctx);
   updateDriverStrip();updateLeaderboard();
-  document.getElementById('speedSlider').oninput=function(){document.getElementById('speedVal').textContent=this.value+'x';};
+  document.getElementById('speedSlider').oninput=function(){
+    const labels=['','1x','2x','3x','4x','5x','6x','7x','8x','9x','10x'];
+    document.getElementById('speedVal').textContent=labels[this.value]||this.value+'x';
+  };
 });
 window.addEventListener('resize',()=>{
   resizeCanvases();
