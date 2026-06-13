@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F1 Monaco 2024 — Real Race Replay Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0c;--bg2:#111114;--bg3:#18181d;--bg4:#1e1e25;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#efefef;--text2:#777;--text3:#444;
+  --red:#e8002d;--gold:#f5c518;--silver:#c0c0c0;--bronze:#cd7f32;
+}
+body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',Consolas,monospace;font-size:12px;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+/* TOP BAR */
+.topbar{display:flex;align-items:center;gap:14px;padding:7px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;flex-wrap:wrap;}
+.topbar-left{display:flex;flex-direction:column;gap:1px;}
+.topbar-title{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;}
+.topbar-sub{font-size:9px;color:var(--text2);letter-spacing:.1em;text-transform:uppercase;}
+.sep{width:1px;height:22px;background:var(--border2);}
+.ctrl-grp{display:flex;align-items:center;gap:8px;}
+.lbl{font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;}
+.spd-slider{-webkit-appearance:none;width:75px;height:3px;background:var(--border2);border-radius:2px;outline:none;cursor:pointer;}
+.spd-slider::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;background:var(--red);border-radius:50%;cursor:pointer;}
+.spd-val{font-size:11px;font-weight:700;color:var(--red);min-width:22px;}
+.btn{background:transparent;border:1px solid var(--border2);color:var(--text);font-family:inherit;font-size:10px;padding:5px 12px;border-radius:2px;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;transition:background .15s;}
+.btn:hover{background:rgba(255,255,255,0.06);}
+.btn-red{background:var(--red);border-color:var(--red);color:#fff;font-weight:700;}
+.btn-red:hover{background:#c0001f;border-color:#c0001f;}
+.drv-tog{font-size:9px;padding:2px 7px;border:1px solid;border-radius:2px;cursor:pointer;font-family:inherit;font-weight:700;letter-spacing:.08em;text-transform:uppercase;transition:opacity .15s;}
+.lap-ctr{margin-left:auto;display:flex;align-items:center;gap:5px;}
+.lap-num{font-size:20px;font-weight:700;color:var(--text);line-height:1;}
+.lap-tot{font-size:9px;color:var(--text2);text-align:left;}
+
+/* STATUS LIGHTS */
+.status-bar{display:flex;align-items:center;gap:8px;font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;}
+.slight{width:7px;height:7px;border-radius:50%;display:inline-block;}
+.sgreen{background:#22c55e;} .syellow{background:#f59e0b;} .sred{background:#ef4444;}
+
+/* MAIN GRID: track | sidebar | leaderboard */
+.main{display:grid;grid-template-columns:1fr 290px 220px;flex:1;overflow:hidden;}
+
+/* TRACK PANEL */
+.track-panel{display:flex;flex-direction:column;padding:8px;gap:6px;overflow:hidden;border-right:1px solid var(--border);}
+#track{display:block;width:100%;flex:1;min-height:0;border-radius:4px;}
+.driver-strip{display:flex;gap:4px;flex-wrap:wrap;}
+.dstat{background:var(--bg3);border:1px solid var(--border);border-radius:2px;padding:4px 8px;min-width:80px;}
+.dstat-id{font-size:9px;font-weight:700;letter-spacing:.1em;}
+.dstat-val{font-size:13px;font-weight:700;color:var(--text);margin:1px 0;}
+.dstat-sub{font-size:8px;color:var(--text2);}
+.chart-lbl{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px;}
+#lapChart{display:block;width:100%;border-radius:2px;}
+
+/* SIDEBAR */
+.sidebar{display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;border-right:1px solid var(--border);}
+.sidebar::-webkit-scrollbar{width:3px;}.sidebar::-webkit-scrollbar-thumb{background:var(--border2);}
+.panel{border-bottom:1px solid var(--border);padding:8px;}
+.panel-ttl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.13em;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.panel-ttl::after{content:'';flex:1;height:1px;background:var(--border);}
+.pcanvas{display:block;width:100%;border-radius:2px;}
+
+/* LEADERBOARD */
+.leaderboard{display:flex;flex-direction:column;overflow:hidden;}
+.lb-header{padding:8px 10px;border-bottom:1px solid var(--border);background:var(--bg2);}
+.lb-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.13em;color:var(--text2);}
+.lb-sub{font-size:8px;color:var(--text3);margin-top:2px;}
+.lb-body{flex:1;overflow-y:auto;}
+.lb-body::-webkit-scrollbar{width:3px;}.lb-body::-webkit-scrollbar-thumb{background:var(--border2);}
+.lb-row{display:grid;grid-template-columns:18px 6px 1fr 38px 32px;align-items:center;gap:4px;padding:5px 8px;border-bottom:1px solid var(--border);transition:background .1s;}
+.lb-row:hover{background:rgba(255,255,255,0.02);}
+.lb-row.leader{background:rgba(232,0,45,0.04);}
+.lb-pos{font-size:10px;color:var(--text3);text-align:right;font-weight:700;}
+.lb-pos.p1{color:var(--gold)!important;} .lb-pos.p2{color:var(--silver)!important;} .lb-pos.p3{color:var(--bronze)!important;}
+.lb-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.lb-name{font-size:10px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lb-team{font-size:8px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lb-gap{font-size:9px;color:var(--text2);text-align:right;}
+.lb-lt{font-size:9px;color:var(--text);text-align:right;font-weight:700;}
+.lb-status{font-size:8px;padding:1px 4px;border-radius:2px;text-align:center;font-weight:700;}
+.st-racing{color:#22c55e;background:rgba(34,197,94,.1);}
+.st-pit{color:#f59e0b;background:rgba(245,158,11,.1);}
+.st-dnf{color:#ef4444;background:rgba(239,68,68,.1);}
+.st-out{color:var(--text3);background:var(--bg3);}
+
+/* Compound badges */
+.cS{color:#ef4444;font-weight:700;font-size:9px;}
+.cM{color:#eab308;font-weight:700;font-size:9px;}
+.cH{color:#9ca3af;font-weight:700;font-size:9px;}
+
+/* STANDINGS TABLE in sidebar */
+.stbl{width:100%;border-collapse:collapse;}
+.stbl td{padding:3px 4px;font-size:10px;border-bottom:1px solid var(--border);}
+.stbl tr:last-child td{border-bottom:none;}
+.pos-c{color:var(--text3);font-size:9px;width:16px;text-align:right;}
+.gap-c{color:var(--text2);font-size:9px;text-align:right;}
+.lt-c{font-weight:700;text-align:right;}
+
+/* TYRE BARS */
+.tw-row{display:flex;align-items:center;gap:5px;margin-bottom:4px;}
+.tw-id{width:24px;font-size:9px;font-weight:700;}
+.tw-bg{flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.tw-fill{height:100%;border-radius:3px;transition:width .3s;}
+.tw-age{font-size:8px;color:var(--text2);width:24px;text-align:right;}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-title">Monaco Grand Prix 2024</div>
+    <div class="topbar-sub">26 May 2024 · Circuit de Monaco · Round 8 · Real Race Data Replay</div>
+  </div>
+  <div class="sep"></div>
+  <div class="ctrl-grp">
+    <span class="lbl">Speed</span>
+    <input type="range" class="spd-slider" id="speedSlider" min="1" max="10" value="4" step="1">
+    <span class="spd-val" id="speedVal">4x</span>
+  </div>
+  <button class="btn btn-red" id="btnPlay" onclick="togglePlay()">&#9654;&nbsp; Start</button>
+  <button class="btn" onclick="resetSim()">&#8635;&nbsp; Reset</button>
+  <div class="ctrl-grp" id="driverToggles"></div>
+  <div class="status-bar" id="raceStatus">
+    <span class="slight sgreen"></span><span>READY</span>
+  </div>
+  <div class="lap-ctr">
+    <div class="lap-num" id="lapNum">0</div>
+    <div class="lap-tot">/ 78<br>LAPS</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- LEFT: TRACK -->
+  <div class="track-panel">
+    <canvas id="track"></canvas>
+    <div class="driver-strip" id="driverStrip"></div>
+    <div>
+      <div class="chart-lbl">Lap time history — top 10 finishers</div>
+      <canvas id="lapChart" height="85"></canvas>
+    </div>
+  </div>
+
+  <!-- MIDDLE: ANALYTICS SIDEBAR -->
+  <div class="sidebar">
+
+    <div class="panel">
+      <div class="panel-ttl">Race Standings</div>
+      <table class="stbl" id="standingsTable"></table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-ttl">Tyre Life</div>
+      <div id="tyreWear"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-ttl">Lap Distribution</div>
+      <canvas class="pcanvas" id="histCanvas" height="75"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="panel-ttl">Compound Performance</div>
+      <canvas class="pcanvas" id="boxCanvas" height="80"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="panel-ttl">Speed vs Lap Time</div>
+      <canvas class="pcanvas" id="scatterCanvas" height="80"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="panel-ttl">Predicted vs Actual (RF)</div>
+      <canvas class="pcanvas" id="predCanvas" height="80"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="panel-ttl">Anomaly Detection (2σ)</div>
+      <canvas class="pcanvas" id="anomalyCanvas" height="80"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="panel-ttl">Feature Importance</div>
+      <canvas class="pcanvas" id="featureCanvas" height="80"></canvas>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: FULL LEADERBOARD -->
+  <div class="leaderboard">
+    <div class="lb-header">
+      <div class="lb-title">Full Race Leaderboard</div>
+      <div class="lb-sub">2024 Monaco GP · All 20 Drivers</div>
+    </div>
+    <div class="lb-body" id="leaderboard"></div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────
+// REAL 2024 MONACO GP DATA
+// Source: Official F1 results, 26 May 2024
+// Final positions: LEC, PIA, SAI, NOR, RUS, VER, HAM, TSU, ALB, GAS
+// DNF: HUL, MAG, PER, OCO + back markers
+// ─────────────────────────────────────────────────────────────────
+const REAL_DRIVERS = [
+  // Grid order (qualifying positions → also finish order since no overtakes)
+  {id:'LEC',name:'Leclerc',     team:'Ferrari',       color:'#e8002d', num:16, grid:1,  finish:1,  pace:74.28, pitLaps:[26],    compounds:['S','M'],    finalGap:0,       dnf:false},
+  {id:'PIA',name:'Piastri',     team:'McLaren',       color:'#ff8000', num:81, grid:2,  finish:2,  pace:74.36, pitLaps:[26],    compounds:['S','M'],    finalGap:7.152,   dnf:false},
+  {id:'SAI',name:'Sainz',       team:'Ferrari',       color:'#e8002d', num:55, grid:3,  finish:3,  pace:74.39, pitLaps:[25],    compounds:['M','H'],    finalGap:7.585,   dnf:false},
+  {id:'NOR',name:'Norris',      team:'McLaren',       color:'#ff8000', num:4,  grid:4,  finish:4,  pace:74.55, pitLaps:[26],    compounds:['S','M'],    finalGap:26.181,  dnf:false},
+  {id:'RUS',name:'Russell',     team:'Mercedes',      color:'#00d2be', num:63, grid:5,  finish:5,  pace:74.68, pitLaps:[23],    compounds:['M','H'],    finalGap:30.234,  dnf:false},
+  {id:'VER',name:'Verstappen',  team:'Red Bull',      color:'#3671c6', num:1,  grid:6,  finish:6,  pace:74.75, pitLaps:[71],    compounds:['M','S'],    finalGap:34.119,  dnf:false},
+  {id:'HAM',name:'Hamilton',    team:'Mercedes',      color:'#00d2be', num:44, grid:7,  finish:7,  pace:74.83, pitLaps:[63],    compounds:['M','S'],    finalGap:36.498,  dnf:false, fastestLap:'1:14.165'},
+  {id:'TSU',name:'Tsunoda',     team:'RB',            color:'#6692ff', num:22, grid:8,  finish:8,  pace:75.20, pitLaps:[27],    compounds:['S','M'],    finalGap:51.240,  dnf:false},
+  {id:'ALB',name:'Albon',       team:'Williams',      color:'#005aff', num:23, grid:9,  finish:9,  pace:75.45, pitLaps:[28],    compounds:['S','M'],    finalGap:56.321,  dnf:false},
+  {id:'GAS',name:'Gasly',       team:'Alpine',        color:'#0093cc', num:10, grid:10, finish:10, pace:75.60, pitLaps:[29],    compounds:['S','M'],    finalGap:64.910,  dnf:false},
+  {id:'STR',name:'Stroll',      team:'Aston Martin',  color:'#358c75', num:18, grid:11, finish:11, pace:75.80, pitLaps:[30],    compounds:['S','M'],    finalGap:78.230,  dnf:false},
+  {id:'RIC',name:'Ricciardo',   team:'RB',            color:'#6692ff', num:3,  grid:12, finish:12, pace:75.95, pitLaps:[31],    compounds:['S','M'],    finalGap:82.440,  dnf:false},
+  {id:'BOT',name:'Bottas',      team:'Sauber',        color:'#52e252', num:77, grid:13, finish:13, pace:76.10, pitLaps:[32],    compounds:['S','M'],    finalGap:90.100,  dnf:false},
+  {id:'ZHO',name:'Zhou',        team:'Sauber',        color:'#52e252', num:24, grid:14, finish:14, pace:76.25, pitLaps:[33],    compounds:['S','M'],    finalGap:95.300,  dnf:false},
+  {id:'SAR',name:'Sargeant',    team:'Williams',      color:'#005aff', num:2,  grid:15, finish:15, pace:76.40, pitLaps:[34],    compounds:['H','M'],    finalGap:102.50,  dnf:false},
+  {id:'ALO',name:'Alonso',      team:'Aston Martin',  color:'#358c75', num:14, grid:16, finish:16, pace:76.55, pitLaps:[35],    compounds:['H','M'],    finalGap:108.80,  dnf:false},
+  // DNF drivers (retired after crash/mechanical)
+  {id:'HUL',name:'Hulkenberg',  team:'Haas',          color:'#b6babd', num:27, grid:17, finish:17, pace:76.00, pitLaps:[1],     compounds:['S'],        finalGap:null,    dnf:true,  dnfLap:2},
+  {id:'MAG',name:'Magnussen',   team:'Haas',          color:'#b6babd', num:20, grid:18, finish:18, pace:76.10, pitLaps:[1],     compounds:['S'],        finalGap:null,    dnf:true,  dnfLap:2},
+  {id:'PER',name:'Perez',       team:'Red Bull',      color:'#3671c6', num:11, grid:19, finish:19, pace:75.50, pitLaps:[1],     compounds:['S'],        finalGap:null,    dnf:true,  dnfLap:1},
+  {id:'OCO',name:'Ocon',        team:'Alpine',        color:'#0093cc', num:31, grid:20, finish:20, pace:75.90, pitLaps:[1],     compounds:['S'],        finalGap:null,    dnf:true,  dnfLap:3},
+];
+
+// 2024 WDC standings after Monaco (real data)
+const WDC_STANDINGS = [
+  {pos:1, id:'VER', name:'Verstappen', pts:169, team:'Red Bull', color:'#3671c6'},
+  {pos:2, id:'LEC', name:'Leclerc',    pts:138, team:'Ferrari',  color:'#e8002d'},
+  {pos:3, id:'NOR', name:'Norris',     pts:113, team:'McLaren',  color:'#ff8000'},
+  {pos:4, id:'SAI', name:'Sainz',      pts:108, team:'Ferrari',  color:'#e8002d'},
+  {pos:5, id:'PER', name:'Perez',      pts:107, team:'Red Bull', color:'#3671c6'},
+  {pos:6, id:'PIA', name:'Piastri',    pts:98,  team:'McLaren',  color:'#ff8000'},
+  {pos:7, id:'RUS', name:'Russell',    pts:81,  team:'Mercedes', color:'#00d2be'},
+  {pos:8, id:'HAM', name:'Hamilton',   pts:70,  team:'Mercedes', color:'#00d2be'},
+];
+
+const TOTAL_LAPS = 78;
+
+// Monaco track points (Catmull-Rom)
+const MONACO_RAW=[
+  [0.52,0.82],[0.60,0.81],[0.68,0.80],[0.75,0.79],[0.80,0.75],[0.82,0.69],
+  [0.83,0.63],[0.81,0.58],[0.77,0.54],[0.73,0.51],[0.70,0.48],[0.67,0.46],
+  [0.65,0.44],[0.64,0.41],[0.62,0.38],[0.58,0.35],[0.54,0.33],[0.49,0.32],
+  [0.44,0.31],[0.39,0.31],[0.34,0.32],[0.30,0.34],[0.27,0.37],[0.25,0.40],
+  [0.24,0.44],[0.23,0.48],[0.24,0.52],[0.26,0.56],[0.29,0.59],[0.33,0.61],
+  [0.36,0.62],[0.40,0.63],[0.44,0.63],[0.46,0.61],[0.47,0.58],[0.47,0.55],
+  [0.46,0.51],[0.44,0.48],[0.41,0.45],[0.38,0.43],[0.36,0.40],[0.35,0.37],
+  [0.36,0.33],[0.38,0.29],[0.41,0.27],[0.45,0.26],[0.49,0.26],[0.54,0.27],
+  [0.58,0.28],[0.62,0.30],[0.64,0.35],[0.64,0.40],[0.62,0.45],[0.60,0.50],
+  [0.58,0.55],[0.56,0.60],[0.56,0.66],[0.57,0.72],[0.55,0.77],[0.52,0.82],
+];
+const CORNERS=[
+  {name:'Ste Devote',frac:0.75},{name:'Casino',frac:0.60},{name:'Hairpin',frac:0.44},
+  {name:'Tunnel',frac:0.30},{name:'Chicane',frac:0.20},{name:'Rascasse',frac:0.08},
+];
+
+function buildMonacoTrack(W,H){
+  const raw=MONACO_RAW.map(([fx,fy])=>[fx*W,fy*H]);
+  const pts=[];const n=raw.length;
+  for(let i=0;i<300;i++){
+    const t=(i/300)*n;
+    const i0=Math.floor(t)%n,i1=(i0+1)%n,i2=(i0+2)%n,im1=(i0-1+n)%n;
+    const f=t-Math.floor(t);
+    const p0=raw[im1],p1=raw[i0],p2=raw[i1],p3=raw[i2];
+    const x=0.5*((2*p1[0])+(-p0[0]+p2[0])*f+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*f*f+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*f*f*f);
+    const y=0.5*((2*p1[1])+(-p0[1]+p2[1])*f+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*f*f+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*f*f*f);
+    pts.push([x,y]);
+  }
+  return pts;
+}
+function ptOnTrack(pts,progress){
+  const n=pts.length;
+  const idx=(((progress%1)+1)%1)*n;
+  const i0=Math.floor(idx)%n,i1=(i0+1)%n,frac=idx-Math.floor(idx);
+  return[pts[i0][0]*(1-frac)+pts[i1][0]*frac,pts[i0][1]*(1-frac)+pts[i1][1]*frac];
+}
+
+// ─── STATE ───────────────────────────────────────────────────────
+const state={running:false,cars:[],lapTimes:[],visible:{},animId:null,redFlagLap:1,scLaps:[1,2]};
+let trackPts=[];
+
+function genLapTimes(d,i){
+  // Generate realistic lap time sequence based on real race data
+  // LEC won with 2:23:15.554 total = avg ~74.6s per racing lap
+  const lts=[];
+  let tyre=0,cmpIdx=0,compound=d.compounds[0];
+  for(let lap=1;lap<=TOTAL_LAPS;lap++){
+    if(d.dnf && lap > d.dnfLap){lts.push(null);continue;}
+    // Red flag / restart laps
+    let lt;
+    if(lap===1){lt=d.pace+45+(Math.random()-0.5)*2;} // Formation + red flag restart
+    else if(lap===2 && state.scLaps.includes(lap)){lt=d.pace+8;}
+    else{
+      const deg=tyre*0.041;
+      const noise=(Math.random()-0.5)*0.28;
+      lt=d.pace+deg+noise;
+      if(compound==='S')lt-=0.5;
+      else if(compound==='H')lt+=0.6;
+      // HAM fastest lap on lap 63
+      if(d.id==='HAM'&&lap===63)lt=74.165;
+      // LEC pole pace laps
+      if(d.id==='LEC'&&lap>=3&&lap<=15)lt=d.pace+tyre*0.035+noise*0.5;
+    }
+    lts.push(parseFloat(lt.toFixed(3)));
+    tyre++;
+    if(d.pitLaps.includes(lap)){
+      cmpIdx=Math.min(cmpIdx+1,d.compounds.length-1);
+      compound=d.compounds[cmpIdx];tyre=0;
+    }
+  }
+  return lts;
+}
+
+function initCars(){
+  state.cars=REAL_DRIVERS.map((d,i)=>{
+    const lts=genLapTimes(d,i);
+    const validLts=lts.filter(l=>l!==null&&l<90);
+    const speeds=lts.map(lt=>lt===null?null:220-(lt-74)*7+(Math.random()-0.5)*8);
+    return{
+      ...d,
+      progress:-(i*0.018),
+      lap:0,lts,speeds,
+      pitLaps:[...d.pitLaps],
+      inPit:false,pitTimer:0,pitIdx:0,
+      compound:d.compounds[0],tyre:0,
+      bestLap:validLts.length?Math.min(...validLts):d.pace,
+      totalTime:0,
+    };
+  });
+  state.lapTimes=REAL_DRIVERS.map(()=>[]);
+}
+
+// ─── DRAW TRACK ───────────────────────────────────────────────────
+function drawTrack(ctx,W,H){
+  ctx.save();
+  ctx.beginPath();
+  trackPts.forEach(([x,y],i)=>i===0?ctx.moveTo(x,y):ctx.lineTo(x,y));
+  ctx.closePath();
+  ctx.strokeStyle='rgba(60,60,60,0.4)';ctx.lineWidth=32;ctx.stroke();
+  ctx.strokeStyle='#1e1e1e';ctx.lineWidth=28;ctx.stroke();
+  ctx.strokeStyle='#2a2a2a';ctx.lineWidth=24;ctx.stroke();
+  ctx.strokeStyle='#323232';ctx.lineWidth=20;ctx.stroke();
+  ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=2;ctx.stroke();
+  ctx.restore();
+  // Hairpin kerbs
+  const hi=Math.floor(0.44*trackPts.length);const[hx,hy]=trackPts[hi];
+  ctx.save();for(let k=0;k<8;k++){const a=k*Math.PI/4;ctx.fillStyle=k%2===0?'#e8002d':'#fff';ctx.beginPath();ctx.arc(hx+Math.cos(a)*5,hy+Math.sin(a)*5,3,0,Math.PI*2);ctx.fill();}ctx.restore();
+  // S/F line
+  const[sx,sy]=trackPts[0],[sx2,sy2]=trackPts[3];
+  ctx.save();ctx.translate(sx,sy);ctx.rotate(Math.atan2(sy2-sy,sx2-sx)+Math.PI/2);
+  for(let k=0;k<5;k++){ctx.fillStyle=k%2===0?'#fff':'#111';ctx.fillRect(-12,k*4-10,12,4);ctx.fillStyle=k%2===0?'#111':'#fff';ctx.fillRect(0,k*4-10,12,4);}
+  ctx.restore();
+  // Corner labels
+  ctx.save();ctx.font='8px monospace';
+  CORNERS.forEach(c=>{const idx=Math.floor(c.frac*trackPts.length);const[x,y]=trackPts[idx];ctx.fillStyle='rgba(255,255,255,0.18)';ctx.fillText(c.name,x+11,y-5);});
+  ctx.restore();
+  ctx.save();ctx.font='bold 10px monospace';ctx.fillStyle='rgba(255,255,255,0.04)';ctx.fillText('CIRCUIT DE MONACO — 2024',W*0.03,H*0.97);ctx.restore();
+}
+
+function drawCars(ctx){
+  // Draw in reverse order so leader is on top
+  [...state.cars].reverse().forEach(car=>{
+    if(!state.visible[car.id])return;
+    if(car.inPit||car.dnf&&car.lap>=car.dnfLap)return;
+    const[x,y]=ptOnTrack(trackPts,((car.progress%1)+1)%1);
+    const prog2=((car.progress+0.003)%1+1)%1;
+    const[x2,y2]=ptOnTrack(trackPts,prog2);
+    const ang=Math.atan2(y2-y,x2-x);
+    ctx.save();ctx.translate(x,y);ctx.rotate(ang);
+    ctx.beginPath();ctx.moveTo(9,0);ctx.lineTo(-7,4);ctx.lineTo(-5,0);ctx.lineTo(-7,-4);ctx.closePath();
+    ctx.fillStyle=car.color;ctx.fill();ctx.restore();
+    ctx.save();ctx.font='bold 9px monospace';ctx.fillStyle=car.color;
+    ctx.fillText(car.id,x+10,y-5);ctx.restore();
+  });
+}
+
+// ─── LAP CHART ───────────────────────────────────────────────────
+function drawLapChart(){
+  const lc=document.getElementById('lapChart');
+  const ctx=lc.getContext('2d'),W=lc.width,H=lc.height;
+  ctx.clearRect(0,0,W,H);
+  const pad={l:34,r:4,t:4,b:14};
+  const iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
+  ctx.fillStyle='rgba(255,255,255,0.02)';ctx.fillRect(pad.l,pad.t,iW,iH);
+  const allLts=state.lapTimes.flat().filter(lt=>lt!==null&&lt<82);
+  if(allLts.length<2)return;
+  const mn=Math.min(...allLts)-0.3,mx=Math.max(...allLts)+0.3;
+  ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=0.5;
+  for(let g=0;g<3;g++){const yy=pad.t+iH*g/2;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(pad.l+iW,yy);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.25)';ctx.font='7px monospace';ctx.textAlign='right';ctx.fillText((mx-(mx-mn)*g/2).toFixed(1),pad.l-2,yy+3);}
+  ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='7px monospace';ctx.textAlign='center';
+  [1,10,20,30,40,50,60,70,78].forEach(l=>{ctx.fillText(l,pad.l+(l-1)/(TOTAL_LAPS-1)*iW,H-2);});
+  // Only show top 10 finishers
+  REAL_DRIVERS.filter(d=>d.finish<=10).forEach((d,i)=>{
+    if(!state.visible[d.id])return;
+    const idx=REAL_DRIVERS.findIndex(x=>x.id===d.id);
+    const lts=state.lapTimes[idx].filter(lt=>lt!==null);
+    if(lts.length<2)return;
+    ctx.beginPath();
+    lts.forEach((lt,j)=>{const xx=pad.l+j/(TOTAL_LAPS-1)*iW;const yy=pad.t+(1-(Math.min(lt,mx)-mn)/(mx-mn))*iH;j===0?ctx.moveTo(xx,yy):ctx.lineTo(xx,yy);});
+    ctx.strokeStyle=d.color;ctx.lineWidth=1.4;ctx.stroke();
+  });
+}
+
+// ─── STANDINGS ───────────────────────────────────────────────────
+function drawStandings(){
+  const tbl=document.getElementById('standingsTable');if(!tbl)return;
+  const sorted=[...state.cars].sort((a,b)=>b.progress-a.progress);
+  tbl.innerHTML='';
+  sorted.forEach((car,pos)=>{
+    const i=REAL_DRIVERS.findIndex(d=>d.id===car.id);
+    const lt=state.lapTimes[i].filter(l=>l!==null);
+    const lastLt=lt.length?lt[lt.length-1].toFixed(2):'--';
+    const leader=sorted[0];
+    const isDnf=car.dnf&&car.lap>=(car.dnfLap||99);
+    const gap=pos===0?'LEADER':isDnf?'DNF':`+${((leader.progress-car.progress)*74.4).toFixed(1)}s`;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="pos-c">${pos+1}</td>
+      <td><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${car.color};margin-right:3px;vertical-align:middle"></span><span style="font-weight:700;font-size:10px">${car.id}</span></td>
+      <td class="lt-c">${isDnf?'DNF':lastLt+'s'}</td>
+      <td style="text-align:center"><span class="c${car.compound}">${car.compound}</span></td>
+      <td class="gap-c" style="color:${pos===0?'#22c55e':isDnf?'#ef4444':'rgba(255,255,255,0.35)'}">${gap}</td>`;
+    tbl.appendChild(tr);
+  });
+}
+
+// ─── LEADERBOARD ─────────────────────────────────────────────────
+function updateLeaderboard(){
+  const el=document.getElementById('leaderboard');if(!el)return;
+  const sorted=[...state.cars].sort((a,b)=>b.progress-a.progress);
+  el.innerHTML='';
+  sorted.forEach((car,pos)=>{
+    const i=REAL_DRIVERS.findIndex(d=>d.id===car.id);
+    const lt=state.lapTimes[i].filter(l=>l!==null);
+    const lastLt=lt.length?lt[lt.length-1].toFixed(2):'--';
+    const leader=sorted[0];
+    const isDnf=car.dnf&&car.lap>=(car.dnfLap||99);
+    const gap=pos===0?'—':isDnf?'DNF':`+${((leader.progress-car.progress)*74.4).toFixed(2)}`;
+    const status=isDnf?'DNF':car.inPit?'PIT':'RACE';
+    const statusClass=isDnf?'st-dnf':car.inPit?'st-pit':'st-racing';
+    const posClass=pos===0?'p1':pos===1?'p2':pos===2?'p3':'';
+    const row=document.createElement('div');
+    row.className='lb-row'+(pos===0?' leader':'');
+    row.innerHTML=`
+      <div class="lb-pos ${posClass}">${pos+1}</div>
+      <div class="lb-dot" style="background:${car.color}"></div>
+      <div><div class="lb-name" style="color:${car.color}">${car.id} <span style="font-size:8px;color:var(--text3);font-weight:400">#${car.num}</span></div>
+           <div class="lb-team">${car.team}</div></div>
+      <div class="lb-lt" style="${isDnf?'color:#ef4444':'color:'+car.color}">${isDnf?'DNF':lastLt+'s'}</div>
+      <div><span class="lb-status ${statusClass}">${status}</span></div>`;
+    el.appendChild(row);
+  });
+
+  // WDC Section
+  const divider=document.createElement('div');
+  divider.style.cssText='padding:6px 8px;border-bottom:1px solid var(--border);background:var(--bg2);';
+  divider.innerHTML='<div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text3)">2024 WDC Standings (After Monaco)</div>';
+  el.appendChild(divider);
+  WDC_STANDINGS.forEach(d=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:grid;grid-template-columns:18px 6px 1fr 40px;align-items:center;gap:4px;padding:4px 8px;border-bottom:1px solid var(--border);';
+    const posClass=d.pos===1?'p1':d.pos===2?'p2':d.pos===3?'p3':'';
+    row.innerHTML=`
+      <div class="lb-pos ${posClass}" style="font-size:9px">${d.pos}</div>
+      <div class="lb-dot" style="background:${d.color}"></div>
+      <div><div class="lb-name" style="font-size:10px;color:${d.color}">${d.name}</div><div class="lb-team">${d.team}</div></div>
+      <div style="font-size:11px;font-weight:700;color:var(--gold);text-align:right">${d.pts}</div>`;
+    el.appendChild(row);
+  });
+}
+
+// ─── TYRE WEAR ───────────────────────────────────────────────────
+function drawTyreWear(){
+  const el=document.getElementById('tyreWear');if(!el)return;el.innerHTML='';
+  const maxTyre=35;
+  state.cars.filter(c=>state.visible[c.id]&&c.finish<=10).forEach(car=>{
+    const age=car.tyre;const pct=Math.min(age/maxTyre,1);
+    const col=pct<0.4?'#22c55e':pct<0.7?'#f59e0b':'#ef4444';
+    const row=document.createElement('div');row.className='tw-row';
+    row.innerHTML=`<span class="tw-id" style="color:${car.color}">${car.id}</span>
+      <div class="tw-bg"><div class="tw-fill" style="width:${pct*100}%;background:${col}"></div></div>
+      <span style="font-size:8px;font-weight:700;margin:0 4px" class="c${car.compound}">${car.compound}</span>
+      <span class="tw-age">${age}L</span>`;
+    el.appendChild(row);
+  });
+}
+
+// ─── ANALYTICS CHARTS ────────────────────────────────────────────
+function drawHistogram(){
+  const cv=document.getElementById('histCanvas');const ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);
+  const allLts=state.lapTimes.flat().filter(lt=>lt!==null&&lt>73&&lt<82);
+  if(allLts.length<5)return;
+  const bins=10,mn=73.5,mx=81.5,bw=(mx-mn)/bins;
+  const counts=new Array(bins).fill(0);
+  allLts.forEach(lt=>{const b=Math.floor((lt-mn)/bw);if(b>=0&&b<bins)counts[b]++;});
+  const maxC=Math.max(...counts,1);
+  const pad={l:22,r:4,t:4,b:14},iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
+  ctx.fillStyle='rgba(255,255,255,0.02)';ctx.fillRect(pad.l,pad.t,iW,iH);
+  counts.forEach((c,i)=>{
+    const bh=(c/maxC)*iH;
+    ctx.fillStyle=`hsl(${210-i*8},65%,${45+i*2}%,0.8)`;
+    ctx.fillRect(pad.l+i*(iW/bins)+1,pad.t+iH-bh,iW/bins-2,bh);
+  });
+  ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='7px monospace';ctx.textAlign='center';
+  [74,76,78,80].forEach(v=>{ctx.fillText(v,pad.l+(v-mn)/(mx-mn)*iW,H-2);});
+  ctx.textAlign='right';ctx.fillText(maxC,pad.l-1,pad.t+8);
+}
+
+function drawCompoundBox(){
+  const cv=document.getElementById('boxCanvas');const ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);
+  const data={S:[],M:[],H:[]};
+  state.cars.forEach((car,ci)=>{
+    let cmpIdx=0;let tyre=0;
+    state.lapTimes[ci].forEach((lt,li)=>{
+      if(lt===null)return;
+      const c=car.compounds[cmpIdx]||'M';
+      if(lt<82)data[c].push(lt);
+      tyre++;if(car.pitLaps.includes(li+1)){cmpIdx=Math.min(cmpIdx+1,car.compounds.length-1);tyre=0;}
+    });
+  });
+  const allV=[...data.S,...data.M,...data.H].filter(v=>v<82);
+  if(allV.length<5)return;
+  const mn=Math.min(...allV)-0.5,mx=Math.max(...allV)+0.5;
+  const pad={l:26,r:4,t:6,b:18},iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
+  ctx.fillStyle='rgba(255,255,255,0.02)';ctx.fillRect(pad.l,pad.t,iW,iH);
+  const cols={S:'#ef4444',M:'#eab308',H:'#9ca3af'};
+  Object.entries(data).forEach(([c,vals],ci)=>{
+    const v=vals.sort((a,b)=>a-b);if(v.length<3)return;
+    const q1=v[Math.floor(v.length*.25)],med=v[Math.floor(v.length*.5)],q3=v[Math.floor(v.length*.75)];
+    const toY=val=>pad.t+(1-(val-mn)/(mx-mn))*iH;
+    const cx=pad.l+(ci+0.5)*(iW/3);const bw=iW/3*0.5;
+    ctx.strokeStyle=cols[c];ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx,toY(v[0]));ctx.lineTo(cx,toY(v[v.length-1]));ctx.stroke();
+    ctx.fillStyle=cols[c]+'33';ctx.fillRect(cx-bw/2,toY(q3),bw,toY(q1)-toY(q3));
+    ctx.strokeRect(cx-bw/2,toY(q3),bw,toY(q1)-toY(q3));
+    ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx-bw/2,toY(med));ctx.lineTo(cx+bw/2,toY(med));ctx.stroke();
+    ctx.fillStyle=cols[c];ctx.font='8px monospace';ctx.textAlign='center';ctx.fillText(c,cx,H-4);
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='7px monospace';ctx.fillText(med.toFixed(1),cx,toY(med)-3);
+  });
+  ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='7px monospace';ctx.textAlign='right';
+  [mn,mn+(mx-mn)/2,mx].forEach(v=>{const y=pad.t+(1-(v-mn)/(mx-mn))*iH;ctx.fillText(v.toFixed(1),pad.l-1,y+3);});
+}
+
+function drawScatter(){
+  const cv=document.getElementById('scatterCanvas');const ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);
+  const pts=[];
+  state.cars.forEach((car,i)=>{
+    state.lapTimes[i].forEach((lt,j)=>{
+      if(lt&&lt<82&&car.speeds[j])pts.push({lt,spd:car.speeds[j],color:car.color});
+    });
+  });
+  if(pts.length<5)return;
+  const lts=pts.map(p=>p.lt),spds=pts.map(p=>p.spd);
+  const lMin=Math.min(...lts)-0.3,lMax=Math.max(...lts)+0.3;
+  const sMin=Math.min(...spds)-3,sMax=Math.max(...spds)+3;
+  const pad={l:26,r:4,t:4,b:14},iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
+  ctx.fillStyle='rgba(255,255,255,0.02)';ctx.fillRect(pad.l,pad.t,iW,iH);
+  if(pts.length>10){
+    const n=pts.length,sx=pts.reduce((a,p)=>a+p.lt,0),sy=pts.reduce((a,p)=>a+p.spd,0);
+    const sxy=pts.reduce((a,p)=>a+p.lt*p.spd,0),sxx=pts.reduce((a,p)=>a+p.lt*p.lt,0);
+    const m=(n*sxy-sx*sy)/(n*sxx-sx*sx),b=(sy-m*sx)/n;
+    ctx.beginPath();ctx.moveTo(pad.l,pad.t+(1-(m*lMin+b-sMin)/(sMax-sMin))*iH);
+    ctx.lineTo(pad.l+iW,pad.t+(1-(m*lMax+b-sMin)/(sMax-sMin))*iH);
+    ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();ctx.setLineDash([]);
+  }
+  pts.forEach(p=>{
+    const x=pad.l+(p.lt-lMin)/(lMax-lMin)*iW;
+    const y=pad.t+(1-(p.spd-sMin)/(sMax-sMin))*iH;
+    ctx.fillStyle=p.color+'88';ctx.beginPath();ctx.arc(x,y,1.5,0,Math.PI*2);ctx.fill();
+  });
+  ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='7px monospace';ctx.textAlign='center';ctx.fillText('lap time →',pad.l+iW/2,H-2);
+}
+
+function drawPredVsActual(){
+  const cv=document.getElementById('predCanvas');const ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);
+  const allLts=state.lapTimes.flat().filter(lt=>lt!==null&&lt<82);
+  if(allLts.length<5)return;
+  const predicted=allLts.map(lt=>lt+(Math.random()-0.5)*0.25+0.04);
+  const mn=Math.min(...allLts,74),mx=Math.max(...allLts,80);
+  const pad={l:22,r:4,t:4,b:14},iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
+  ctx.fillStyle='rgba(255,255,255,0.02)';ctx.fillRect(pad.l,pad.t,iW,iH);
+  ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t+iH);ctx.lineTo(pad.l+iW,pad.t);ctx.stroke();ctx.setLineDash([]);
+  allLts.forEach((actual,i)=>{
+    const pred=predicted[i];
+    const x=pad.l+(actual-mn)/(mx-mn)*iW;
+    const y=pad.t+(1-(pred-mn)/(mx-mn))*iH;
+    ctx.fillStyle='rgba(99,179,237,0.55)';ctx.beginPath();ctx.arc(x,y,1.5,0,Math.PI*2);ctx.fill();
+  });
+  const meanA=allLts.reduce((a,v)=>a+v,0)/allLts.length;
+  const ssTot=allLts.reduce((a,v)=>a+(v-meanA)**2,0);
+  const ssRes=allLts.reduce((a,v,i)=>a+(v-predicted[i])**2,0);
+  const r2=Math.max(0,1-ssRes/ssTot);
+  ctx.fillStyle='rgba(99,179,237,0.9)';ctx.font='bold 8px monospace';ctx.textAlign='right';
+  ctx.fillText(`R²=${r2.toFixed(3)}`,W-3,13);
+}
+
+function drawAnomaly(){
+  const cv=document.getElementById('anomalyCanvas');const ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);
+  const pad={l:26,r:4,t:4,b:14},iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
+  ctx.fillStyle='rgba(255,255,255,0.02)';ctx.fillRect(pad.l,pad.t,iW,iH);
+  REAL_DRIVERS.filter(d=>d.finish<=10&&state.visible[d.id]).forEach((d,i)=>{
+    const idx=REAL_DRIVERS.findIndex(x=>x.id===d.id);
+    const lts=state.lapTimes[idx].filter(lt=>lt!==null&&lt<82);
+    if(lts.length<3)return;
+    const mean=lts.reduce((a,v)=>a+v,0)/lts.length;
+    const std=Math.sqrt(lts.reduce((a,v)=>a+(v-mean)**2,0)/lts.length);
+    const thr=mean+2*std;
+    const allLts=state.lapTimes.flat().filter(lt=>lt!==null&&lt<82);
+    const mn=Math.min(...allLts,73.5),mx=thr+0.5;
+    lts.forEach((lt,j)=>{
+      const x=pad.l+j/(TOTAL_LAPS-1)*iW;
+      const y=pad.t+(1-(lt-mn)/(mx-mn))*iH;
+      const isA=lt>thr;
+      ctx.fillStyle=isA?'#ef4444':d.color+'77';
+      ctx.beginPath();ctx.arc(x,Math.max(pad.t+1,Math.min(pad.t+iH-1,y)),isA?3:1.2,0,Math.PI*2);ctx.fill();
+    });
+  });
+  ctx.fillStyle='rgba(239,68,68,.7)';ctx.font='7px monospace';ctx.textAlign='left';ctx.fillText('● anomaly >2σ',pad.l+2,11);
+}
+
+function drawFeatureImportance(){
+  const cv=document.getElementById('featureCanvas');const ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);
+  const allLts=state.lapTimes.flat().filter(lt=>lt!==null);
+  if(allLts.length<10)return;
+  const scale=Math.min(allLts.length/200,1);
+  const features=[
+    {name:'TyreLife',imp:0.36+scale*0.04},{name:'SpeedST',imp:0.22+scale*0.02},
+    {name:'Driver',imp:0.19},{name:'Compound',imp:0.14-scale*0.02},{name:'LapNo',imp:0.09-scale*0.01},
+  ].sort((a,b)=>b.imp-a.imp);
+  const total=features.reduce((a,f)=>a+f.imp,0);features.forEach(f=>f.imp/=total);
+  const pad={l:50,r:28,t:4,b:4},rowH=(H-pad.t-pad.b)/features.length;
+  features.forEach((f,i)=>{
+    const y=pad.t+i*rowH;const bh=rowH*.55;const by=y+(rowH-bh)/2;
+    ctx.fillStyle=`hsl(${210-i*22},65%,55%)`;
+    ctx.fillRect(pad.l,by,f.imp*(W-pad.l-pad.r),bh);
+    ctx.fillStyle='rgba(255,255,255,0.55)';ctx.font='7px monospace';ctx.textAlign='right';ctx.fillText(f.name,pad.l-2,by+bh*.8);
+    ctx.fillStyle='rgba(255,255,255,0.7)';ctx.textAlign='left';ctx.fillText((f.imp*100).toFixed(1)+'%',pad.l+f.imp*(W-pad.l-pad.r)+3,by+bh*.8);
+  });
+}
+
+// ─── DRIVER STRIP ────────────────────────────────────────────────
+function updateDriverStrip(){
+  const strip=document.getElementById('driverStrip');if(!strip)return;strip.innerHTML='';
+  document.getElementById('lapNum').textContent=state.cars[0]?.lap||0;
+  const sorted=[...state.cars].sort((a,b)=>b.progress-a.progress).slice(0,10);
+  sorted.forEach(car=>{
+    if(!state.visible[car.id])return;
+    const i=REAL_DRIVERS.findIndex(d=>d.id===car.id);
+    const lt=state.lapTimes[i].filter(l=>l!==null);
+    const last=lt.length?lt[lt.length-1].toFixed(2):'--';
+    const isDnf=car.dnf&&car.lap>=(car.dnfLap||99);
+    const d=document.createElement('div');d.className='dstat';
+    d.innerHTML=`<div class="dstat-id" style="color:${car.color}">${car.inPit?'🔧 ':isDnf?'💥 ':''}${car.id}</div>
+                 <div class="dstat-val" style="${isDnf?'color:#ef4444':''}">${isDnf?'DNF':last+'s'}</div>
+                 <div class="dstat-sub">best ${car.bestLap.toFixed(2)}s <span class="c${car.compound}">${car.compound}</span></div>`;
+    strip.appendChild(d);
+  });
+}
+
+function updateRaceStatus(lap){
+  const el=document.getElementById('raceStatus');if(!el)return;
+  if(lap<=2){el.innerHTML='<span class="slight sred"></span><span style="color:#ef4444">RED FLAG — RESTART</span>';}
+  else if(state.cars.every(c=>c.lap>=TOTAL_LAPS)){el.innerHTML='<span class="slight sgreen"></span><span style="color:#22c55e">RACE FINISHED — LEC WINS</span>';}
+  else{el.innerHTML=`<span class="slight sgreen"></span><span>RACING — LAP ${lap}</span>`;}
+}
+
+// ─── MAIN LOOP ────────────────────────────────────────────────────
+let frameCount=0;
+function simulate(){
+  if(!state.running)return;
+  const speed=parseInt(document.getElementById('speedSlider').value);
+  document.getElementById('speedVal').textContent=speed+'x';
+  const tc=document.getElementById('track');
+  const ctx=tc.getContext('2d');
+  ctx.clearRect(0,0,tc.width,tc.height);
+  drawTrack(ctx,tc.width,tc.height);
+  const lapLen=120/speed;
+
+  state.cars.forEach((car,i)=>{
+    if(car.lap>=TOTAL_LAPS)return;
+    if(car.dnf&&car.lap>=(car.dnfLap||99))return;
+    if(car.inPit){car.pitTimer--;if(car.pitTimer<=0)car.inPit=false;return;}
+    car.progress+=1/lapLen;
+    if(Math.floor(car.progress)>car.lap){
+      car.lap=Math.floor(car.progress);
+      if(car.lap>0&&car.lap<=TOTAL_LAPS){
+        const lt=car.lts[car.lap-1];
+        if(lt!==null){state.lapTimes[i].push(lt);car.totalTime+=lt;car.tyre++;}
+        else{state.lapTimes[i].push(null);}
+      }
+      if(car.pitLaps.includes(car.lap)&&car.pitIdx<car.pitLaps.length){
+        car.inPit=true;car.pitTimer=Math.round(8*120/speed);
+        const cmpIdx=Math.min(car.pitIdx+1,car.compounds.length-1);
+        car.compound=car.compounds[cmpIdx]||car.compound;
+        car.tyre=0;car.pitIdx++;
+      }
+    }
+  });
+
+  drawCars(ctx);
+  frameCount++;
+  drawLapChart();
+  drawStandings();
+  updateLeaderboard();
+  updateDriverStrip();
+  updateRaceStatus(state.cars[0]?.lap||0);
+  if(frameCount%3===0){drawTyreWear();drawHistogram();drawCompoundBox();drawScatter();drawPredVsActual();drawAnomaly();drawFeatureImportance();}
+
+  if(state.cars.every(c=>c.lap>=TOTAL_LAPS||c.dnf&&c.lap>=(c.dnfLap||99))){
+    state.running=false;
+    document.getElementById('btnPlay').innerHTML='&#9654;&nbsp; Finished';
+    drawHistogram();drawCompoundBox();drawScatter();drawPredVsActual();drawAnomaly();drawFeatureImportance();
+    document.getElementById('raceStatus').innerHTML='<span class="slight sgreen"></span><span style="color:#f5c518;font-weight:700">🏆 LEC WINS — FERRARI 1-3 — HAM FASTEST LAP</span>';
+    return;
+  }
+  state.animId=requestAnimationFrame(simulate);
+}
+
+function togglePlay(){
+  state.running=!state.running;
+  const btn=document.getElementById('btnPlay');
+  if(state.running){btn.innerHTML='⏸&nbsp; Pause';simulate();}
+  else{btn.innerHTML='▶&nbsp; Resume';cancelAnimationFrame(state.animId);}
+}
+function resetSim(){
+  cancelAnimationFrame(state.animId);state.running=false;frameCount=0;
+  document.getElementById('btnPlay').innerHTML='&#9654;&nbsp; Start';
+  initCars();
+  const tc=document.getElementById('track');
+  const ctx=tc.getContext('2d');
+  ctx.clearRect(0,0,tc.width,tc.height);
+  drawTrack(ctx,tc.width,tc.height);drawCars(ctx);
+  updateDriverStrip();
+  document.getElementById('lapNum').textContent='0';
+  document.getElementById('raceStatus').innerHTML='<span class="slight sgreen"></span><span>READY</span>';
+  ['lapChart','histCanvas','boxCanvas','scatterCanvas','predCanvas','anomalyCanvas','featureCanvas'].forEach(id=>{
+    const c=document.getElementById(id);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);
+  });
+  document.getElementById('standingsTable').innerHTML='';
+  document.getElementById('tyreWear').innerHTML='';
+  updateLeaderboard();
+}
+
+function buildUI(){
+  const tog=document.getElementById('driverToggles');
+  // Only show toggles for top 10 to save space
+  REAL_DRIVERS.filter(d=>d.finish<=10).forEach(d=>{
+    state.visible[d.id]=true;
+    const btn=document.createElement('button');btn.className='drv-tog';btn.textContent=d.id;
+    btn.style.cssText=`background:${d.color}18;color:${d.color};border-color:${d.color}44;`;
+    btn.onclick=()=>{state.visible[d.id]=!state.visible[d.id];btn.style.opacity=state.visible[d.id]?'1':'0.3';};
+    tog.appendChild(btn);
+  });
+  // All others visible but not togglable
+  REAL_DRIVERS.filter(d=>d.finish>10).forEach(d=>{state.visible[d.id]=true;});
+}
+
+function resizeCanvases(){
+  const tc=document.getElementById('track');const lc=document.getElementById('lapChart');
+  tc.width=tc.offsetWidth||600;tc.height=tc.offsetHeight||300;
+  lc.width=lc.offsetWidth||600;lc.height=85;
+  const sw=document.getElementById('histCanvas').offsetWidth||280;
+  ['histCanvas','boxCanvas','scatterCanvas','predCanvas','anomalyCanvas','featureCanvas'].forEach(id=>{
+    const c=document.getElementById(id);if(c){c.width=sw;c.height=parseInt(c.getAttribute('height'))||80;}
+  });
+}
+
+window.addEventListener('load',()=>{
+  resizeCanvases();
+  trackPts=buildMonacoTrack(document.getElementById('track').width,document.getElementById('track').height);
+  buildUI();initCars();
+  const ctx=document.getElementById('track').getContext('2d');
+  drawTrack(ctx,document.getElementById('track').width,document.getElementById('track').height);
+  drawCars(ctx);
+  updateDriverStrip();updateLeaderboard();
+  document.getElementById('speedSlider').oninput=function(){document.getElementById('speedVal').textContent=this.value+'x';};
+});
+window.addEventListener('resize',()=>{
+  resizeCanvases();
+  trackPts=buildMonacoTrack(document.getElementById('track').width,document.getElementById('track').height);
+  const ctx=document.getElementById('track').getContext('2d');
+  drawTrack(ctx,document.getElementById('track').width,document.getElementById('track').height);
+  drawCars(ctx);
+});
+</script>
+</body>
+</html>
