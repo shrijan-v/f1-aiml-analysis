@@ -23,8 +23,8 @@ body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',Co
 .ctrl-grp{display:flex;align-items:center;gap:8px;}
 .lbl{font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;}
 .spd-slider{-webkit-appearance:none;width:75px;height:3px;background:var(--border2);border-radius:2px;outline:none;cursor:pointer;}
-.spd-slider::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;background:var(--red);border-radius:50%;cursor:pointer;}
-.spd-val{font-size:11px;font-weight:700;color:var(--red);min-width:22px;}
+
+.spd-val{font-size:11px;font-weight:700;color:var(--red);min-width:22px;}.spd-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:11px;height:11px;background:var(--red);border-radius:50%;cursor:pointer;}
 .btn{background:transparent;border:1px solid var(--border2);color:var(--text);font-family:inherit;font-size:10px;padding:5px 12px;border-radius:2px;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;transition:background .15s;}
 .btn:hover{background:rgba(255,255,255,0.06);}
 .btn-red{background:var(--red);border-color:var(--red);color:#fff;font-weight:700;}
