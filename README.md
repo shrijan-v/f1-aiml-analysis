@@ -3,6 +3,9 @@
 A complete data science pipeline for analysing 2024 Bahrain GP lap timing data,
 built for the DataCore Analytics intern assignment.
 
+## 🏎️ Live Demo
+[▶ Monaco 2024 GP Live Dashboard](https://shrijan-v.github.io/f1-aiml-analysis/f1_monaco_2024_real.html)
+
 ## What It Does
 - Loads & cleans F1 lap timing data via the FastF1 API
 - Performs EDA: lap time distributions, tyre compound comparison, sector analysis
